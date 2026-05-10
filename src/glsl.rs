@@ -1,3 +1,4 @@
+use glam::{Mat4, Vec3};
 use std::ffi::CString;
 use std::fs;
 
@@ -56,22 +57,24 @@ impl GLSLProgram {
         }
     }
 
-    pub fn set_uniform_vec3(&self, name: &str, value: &glm::Vec3) {
+    pub fn set_uniform_vec3(&self, name: &str, value: &Vec3) {
         let c_name = CString::new(name).unwrap();
         let loc = unsafe { gl::GetUniformLocation(self.handle, c_name.as_ptr()) };
         if loc != -1 {
+            let arr = value.to_array();
             unsafe {
-                gl::Uniform3fv(loc, 1, value.as_array().as_ptr() as *const _);
+                gl::Uniform3fv(loc, 1, arr.as_ptr());
             }
         }
     }
 
-    pub fn set_uniform_mat4(&self, name: &str, value: &glm::Mat4) {
+    pub fn set_uniform_mat4(&self, name: &str, value: &Mat4) {
         let c_name = CString::new(name).unwrap();
         let loc = unsafe { gl::GetUniformLocation(self.handle, c_name.as_ptr()) };
         if loc != -1 {
+            let arr = value.to_cols_array();
             unsafe {
-                gl::UniformMatrix4fv(loc, 1, gl::FALSE, value.as_array().as_ptr() as *const _);
+                gl::UniformMatrix4fv(loc, 1, gl::FALSE, arr.as_ptr());
             }
         }
     }

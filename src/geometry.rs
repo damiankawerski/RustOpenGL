@@ -1,3 +1,4 @@
+use glam::Vec3;
 use std::collections::HashMap;
 
 pub struct Geometry {
@@ -32,14 +33,14 @@ impl Geometry {
     pub fn render(&self) {
         unsafe {
             gl::BindVertexArray(self.vao);
-            
+
             if self.ibo != 0 {
                 gl::DrawElements(
                     self.primitive_mode,
                     self.n_indices,
                     gl::UNSIGNED_INT,
                     std::ptr::null(),
-                );  
+                );
             } else {
                 gl::DrawArrays(self.primitive_mode, 0, self.n_verts);
             }
@@ -58,7 +59,7 @@ impl Geometry {
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ibo);
             gl::BufferData(
                 gl::ELEMENT_ARRAY_BUFFER,
-                (data.len() * std::mem::size_of::<u32>()) as isize,
+                std::mem::size_of_val(data) as isize,
                 data.as_ptr() as *const _,
                 gl::STATIC_DRAW,
             );
@@ -66,12 +67,12 @@ impl Geometry {
         }
     }
 
-    pub fn set_vertices(&mut self, index: u32, data: &[glm::Vec3]) {
+    pub fn set_vertices(&mut self, index: u32, data: &[Vec3]) {
         self.n_verts = data.len() as i32;
         self.set_attribute(index, data);
     }
 
-    pub fn set_attribute(&mut self, index: u32, data: &[glm::Vec3]) {
+    pub fn set_attribute(&mut self, index: u32, data: &[Vec3]) {
         let mut buffer = 0;
         if let Some(&b) = self.buffer_objects.get(&index) {
             buffer = b;
@@ -87,12 +88,12 @@ impl Geometry {
             gl::BindBuffer(gl::ARRAY_BUFFER, buffer);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
-                (data.len() * std::mem::size_of::<glm::Vec3>()) as isize,
+                std::mem::size_of_val(data) as isize,
                 data.as_ptr() as *const _,
                 gl::STATIC_DRAW,
             );
 
-            let components = std::mem::size_of::<glm::Vec3>() / std::mem::size_of::<f32>();
+            let components = std::mem::size_of::<Vec3>() / std::mem::size_of::<f32>();
             gl::VertexAttribPointer(
                 index,
                 components as i32,

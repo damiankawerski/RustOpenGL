@@ -2,23 +2,25 @@ mod geometry;
 mod glsl;
 mod glwidget;
 mod primitives;
+mod app;
 
 use glutin::config::ConfigTemplateBuilder;
 use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
 use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
-use glutin::surface::SwapInterval;
+use glutin::surface::{SwapInterval};
 use glutin_winit::{DisplayBuilder, GlWindow};
 use raw_window_handle::HasWindowHandle;
-use winit::event::{Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::WindowAttributes;
+use winit::event_loop::{EventLoop};
+use winit::window::{WindowAttributes};
 
 use std::ffi::CString;
 use std::num::NonZeroU32;
+use crate::app::App;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
+
     let window_attributes = WindowAttributes::default()
         .with_title("GIPO Lab 2")
         .with_inner_size(winit::dpi::LogicalSize::new(800u32, 600u32));
@@ -74,42 +76,12 @@ fn main() {
     let size = winit_window.inner_size();
     gl_widget.resize(size.width as i32, size.height as i32);
 
-    event_loop
-        .run(move |event, elwt| {
-            elwt.set_control_flow(ControlFlow::Poll);
+    let mut app = App {
+        window: winit_window,
+        gl_context,
+        gl_surface,
+        gl_widget,
+    };
 
-            match event {
-                Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::CloseRequested => elwt.exit(),
-                    WindowEvent::Resized(size) => {
-                        if size.width > 0 && size.height > 0 {
-                            gl_surface.resize(
-                                &gl_context,
-                                NonZeroU32::new(size.width).unwrap(),
-                                NonZeroU32::new(size.height).unwrap(),
-                            );
-                            gl_widget.resize(size.width as i32, size.height as i32);
-                        }
-                    }
-                    WindowEvent::CursorMoved { position, .. } => {
-                        gl_widget.mouse_move(position.x as i32, position.y as i32);
-                    }
-                    WindowEvent::MouseWheel { delta, .. } => match delta {
-                        winit::event::MouseScrollDelta::LineDelta(_x, y) => {
-                            gl_widget.wheel(y * 100.0); // Simple scaling for lines
-                        }
-                        winit::event::MouseScrollDelta::PixelDelta(pos) => {
-                            gl_widget.wheel(pos.y as f32);
-                        }
-                    },
-                    _ => {}
-                },
-                Event::AboutToWait => {
-                    gl_widget.paint();
-                    gl_surface.swap_buffers(&gl_context).unwrap();
-                }
-                _ => {}
-            }
-        })
-        .unwrap();
+    event_loop.run_app(&mut app).unwrap();
 }

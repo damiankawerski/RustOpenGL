@@ -1,10 +1,8 @@
 use crate::geometry::Geometry;
 use crate::glsl::GLSLProgram;
+use glam::{Mat4, Vec3};
 use std::collections::HashMap;
 
-pub static glmIdentity: glm::Matrix4<f32> = glm::mat4(
-    1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.,
-);
 pub struct GLWidget {
     frame: u64,
     pos_x: i32,
@@ -16,7 +14,7 @@ pub struct GLWidget {
     zoom: f32,
     shaders: HashMap<String, GLSLProgram>,
     geometry: HashMap<String, Geometry>,
-    geometry_mat: HashMap<String, glm::Mat4>,
+    geometry_mat: HashMap<String, Mat4>,
 }
 
 impl GLWidget {
@@ -52,39 +50,30 @@ impl GLWidget {
         self.shaders.insert("basic".to_string(), program);
     }
 
+    fn add_sphere(&mut self, name: &str, radius: f32, color: Vec3) {
+        let geom = crate::primitives::new_sphere_geometry(radius, 32, color);
+        self.geometry.insert(name.to_string(), geom);
+        self.geometry_mat.insert(name.to_string(), Mat4::IDENTITY);
+    }
+
     fn create_geometry(&mut self) {
         let axes = crate::primitives::new_axes_geometry();
         self.geometry.insert("main_axes".to_string(), axes);
-        let identity = glm::mat4(
-            1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.,
-        );
-        self.geometry_mat.insert("main_axes".to_string(), identity);
+        self.geometry_mat.insert("main_axes".to_string(), Mat4::IDENTITY);
 
-        let earth =
-            crate::primitives::new_sphere_geometry(0.1, 32, glm::vec3(0.0, 1.0, 0.0));
-        self.geometry.insert("earth".to_string(), earth);
+        self.add_sphere("sun",       0.15, Vec3::new(0.2, 1.0, 0.0));
+        self.add_sphere("earth",     0.10, Vec3::new(0.0, 1.0, 0.0));
+        self.add_sphere("moon",      0.05, Vec3::new(1.0, 0.0, 0.0));
+        self.add_sphere("mars",      0.10, Vec3::new(1.0, 0.5, 0.0));
+        self.add_sphere("mars_moon", 0.05, Vec3::new(1.0, 0.5, 0.5));
+    }
 
-        self.geometry_mat.insert("earth".to_string(), identity);
-
-        let sun =
-            crate::primitives::new_sphere_geometry(0.15, 32, glm::vec3(0.2, 1.0, 0.0));
-        self.geometry.insert("sun".to_string(), sun);
-        self.geometry_mat.insert("sun".to_string(), identity);
-
-        let moon =
-            crate::primitives::new_sphere_geometry(0.05, 32, glm::vec3(1.0, 0.0, 0.0));
-        self.geometry.insert("moon".to_string(), moon);
-        self.geometry_mat.insert("moon".to_string(), identity);
-
-        let mars =
-            crate::primitives::new_sphere_geometry(0.1, 32, glm::vec3(1.0, 0.5, 0.0));
-        self.geometry.insert("mars".to_string(), mars);
-        self.geometry_mat.insert("mars".to_string(), identity);
-
-        let mars_moon =
-            crate::primitives::new_sphere_geometry(0.05, 32, glm::vec3(1.0, 0.5, 0.5));
-        self.geometry.insert("mars_moon".to_string(), mars_moon);
-        self.geometry_mat.insert("mars_moon".to_string(), identity);
+    fn render_body(&self, shader: &GLSLProgram, name: &str, transform: Mat4) {
+        if let Some(geom) = self.geometry.get(name) {
+            let base_mat = self.geometry_mat.get(name).copied().unwrap_or(Mat4::IDENTITY);
+            shader.set_uniform_mat4("MVMat", &(transform * base_mat));
+            geom.render();
+        }
     }
 
     pub fn mouse_move(&mut self, x: i32, y: i32) {
@@ -92,13 +81,12 @@ impl GLWidget {
         self.pos_y = y;
 
         let rotation_speed = 0.01;
-        // Środek obrotu od środka ekranu (zamiast względem 0,0)
         self.rot_y = (x as f32 - self.width as f32 / 2.0) * rotation_speed;
         self.rot_x = (y as f32 - self.height as f32 / 2.0) * rotation_speed;
     }
 
     pub fn wheel(&mut self, delta_y: f32) {
-        self.zoom += delta_y / 1000.0; 
+        self.zoom += delta_y / 1000.0;
         self.zoom = self.zoom.clamp(0.1, 10.0);
     }
 
@@ -120,108 +108,29 @@ impl GLWidget {
         if let Some(shader) = self.shaders.get("basic") {
             shader.use_program();
 
-            shader.set_uniform_mat4("MVMat", &glmIdentity);
-
-            let mut view = glmIdentity;
-            view = glm::ext::scale(&view, glm::vec3(self.zoom, self.zoom, self.zoom));
-            view = glm::ext::rotate(&view, self.rot_x, glm::vec3(1.0, 0.0, 0.0));
-            view = glm::ext::rotate(&view, self.rot_y, glm::vec3(0.0, 1.0, 0.0));
-
+            let view = Mat4::from_scale(Vec3::splat(self.zoom))
+                * Mat4::from_axis_angle(Vec3::X, self.rot_x)
+                * Mat4::from_axis_angle(Vec3::Y, self.rot_y);
             shader.set_uniform_mat4("ViewMat", &view);
 
-            let tx = glm::ext::translate(&glmIdentity, glm::vec3(0.6, 0.0, 0.0));
-            let radians = glm::radians(0.4 * self.frame as f32);
-            let rot = glm::ext::rotate(&glmIdentity, radians, glm::vec3(0.0, 0.0, 1.0));
+            let radians = (0.4 * self.frame as f32).to_radians();
+            let orbit_rot = Mat4::from_axis_angle(Vec3::Z, radians);
 
-            let rot_earth = glm::ext::rotate(&glmIdentity, radians * 4.0, glm::vec3(0.0, 0.0, 1.0));
-            let earth_transform = rot * tx * rot_earth;
+            let tx_earth = Mat4::from_translation(Vec3::new(0.6, 0.0, 0.0));
+            let tx_mars  = Mat4::from_translation(Vec3::new(-0.6, 0.0, 0.0));
 
-            let tx_mars = glm::ext::translate(&glmIdentity, glm::vec3(-0.6, 0.0, 0.0));
-            let rot_mars = glm::ext::rotate(&glmIdentity, radians * 3.0, glm::vec3(0.0, 0.0, 1.0));
-            let mars_transform = rot * tx_mars * rot_mars;
+            let earth_transform = orbit_rot * tx_earth * Mat4::from_axis_angle(Vec3::Z, radians * 4.0);
+            let mars_transform  = orbit_rot * tx_mars  * Mat4::from_axis_angle(Vec3::Z, radians * 3.0);
 
-            if let Some(geom) = self.geometry.get("sun") {
-                let base_mat = self.geometry_mat.get("sun").copied().unwrap_or(glmIdentity);
-                let final_mat = glmIdentity * base_mat;
-                shader.set_uniform_mat4("MVMat", &final_mat);
-                geom.render();
-            }
+            let moon_orbit  = Mat4::from_axis_angle(Vec3::Z, radians * 2.0);
+            let moon_offset = Mat4::from_translation(Vec3::new(0.2, 0.0, 0.0));
 
-            if let Some(geom) = self.geometry.get("main_axes") {
-                let base_mat = self
-                    .geometry_mat
-                    .get("main_axes")
-                    .copied()
-                    .unwrap_or(glmIdentity);
-                let final_mat = glmIdentity * earth_transform * base_mat;
-                shader.set_uniform_mat4("MVMat", &final_mat);
-                geom.render();
-            }
-
-            if let Some(geom) = self.geometry.get("earth") {
-                let base_mat = self
-                    .geometry_mat
-                    .get("earth")
-                    .copied()
-                    .unwrap_or(glmIdentity);
-
-                let final_mat = glmIdentity * earth_transform * base_mat;
-
-                shader.set_uniform_mat4("MVMat", &final_mat);
-                geom.render();
-            }
-
-            if let Some(geom) = self.geometry.get("moon") {
-                let base_mat = self
-                    .geometry_mat
-                    .get("moon")
-                    .copied()
-                    .unwrap_or(glmIdentity);
-
-                let moon_tx = glm::ext::translate(&glmIdentity, glm::vec3(0.2, 0.0, 0.0));
-
-                let moon_orbit_rot =
-                    glm::ext::rotate(&glmIdentity, radians * 2.0, glm::vec3(0.0, 0.0, 1.0));
-
-                let moon_transform = rot * tx * moon_orbit_rot * moon_tx;
-                let final_mat = glmIdentity * moon_transform * base_mat;
-
-                shader.set_uniform_mat4("MVMat", &final_mat);
-                geom.render();
-            }
-
-            if let Some(geom) = self.geometry.get("mars") {
-                let base_mat = self
-                    .geometry_mat
-                    .get("mars")
-                    .copied()
-                    .unwrap_or(glmIdentity);
-
-                let final_mat = glmIdentity * mars_transform * base_mat;
-
-                shader.set_uniform_mat4("MVMat", &final_mat);
-                geom.render();
-            }
-
-            if let Some(geom) = self.geometry.get("mars_moon") {
-                let base_mat = self
-                    .geometry_mat
-                    .get("mars_moon")
-                    .copied()
-                    .unwrap_or(glmIdentity);
-
-                let moon_tx = glm::ext::translate(&glmIdentity, glm::vec3(0.2, 0.0, 0.0));
-
-                let moon_orbit_rot =
-                    glm::ext::rotate(&glmIdentity, radians * 2.0, glm::vec3(0.0, 0.0, 1.0));
-
-                // Środek orbity Marsa to rot * tx_mars, nie rot * tx (które odpowiada Ziemi)
-                let moon_transform = rot * tx_mars * moon_orbit_rot * moon_tx;
-                let final_mat = glmIdentity * moon_transform * base_mat;
-
-                shader.set_uniform_mat4("MVMat", &final_mat);
-                geom.render();
-            }
+            self.render_body(shader, "sun",       Mat4::IDENTITY);
+            self.render_body(shader, "main_axes", earth_transform);
+            self.render_body(shader, "earth",     earth_transform);
+            self.render_body(shader, "moon",      orbit_rot * tx_earth * moon_orbit * moon_offset);
+            self.render_body(shader, "mars",      mars_transform);
+            self.render_body(shader, "mars_moon", orbit_rot * tx_mars  * moon_orbit * moon_offset);
         } else {
             println!("WARNING: No shader program");
         }

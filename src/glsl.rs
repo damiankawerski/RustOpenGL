@@ -68,6 +68,14 @@ impl GLSLProgram {
         }
     }
 
+    pub fn set_uniform_float(&self, name: &str, value: f32) {
+        let c_name = CString::new(name).unwrap();
+        let loc = unsafe { gl::GetUniformLocation(self.handle, c_name.as_ptr()) };
+        if loc != -1 {
+            unsafe { gl::Uniform1f(loc, value); }
+        }
+    }
+
     pub fn set_uniform_mat4(&self, name: &str, value: &Mat4) {
         let c_name = CString::new(name).unwrap();
         let loc = unsafe { gl::GetUniformLocation(self.handle, c_name.as_ptr()) };

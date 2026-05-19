@@ -3,6 +3,8 @@ mod glsl;
 mod glwidget;
 mod primitives;
 mod app;
+mod frame;
+mod camera;
 
 use glutin::config::ConfigTemplateBuilder;
 use glutin::context::{ContextApi, ContextAttributesBuilder, Version};

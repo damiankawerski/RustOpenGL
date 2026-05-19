@@ -30,7 +30,7 @@ impl GLWidget {
                 60.0_f32.to_radians(),
                 800.0 / 600.0,
                 0.1,
-                10.0,
+                1000.0,
             ),
             shaders: HashMap::new(),
             geometry: HashMap::new(),
@@ -148,7 +148,7 @@ impl GLWidget {
             60.0_f32.to_radians(),
             width as f32 / height as f32,
             0.1,
-            10.0,
+            1000.0,
         );
         unsafe {
             gl::Viewport(0, 0, width, height);
@@ -181,27 +181,23 @@ impl GLWidget {
             shader.set_uniform_mat4("ViewMat", &view);
             shader.set_uniform_mat4("ProjectionMat", &self.projection_mat);
 
-            let sphere_world_pos = sun_movement_frame.matrix().col(3).truncate();
-            let light_pos_view = view.transform_point3(sphere_world_pos);
-            shader.set_uniform_vec3("LightPos", &light_pos_view);
+            shader.set_uniform_vec3("LightPos", &Vec3::ZERO);
             shader.set_uniform_vec3("LightColor", &Vec3::new(1.0, 1.0, 1.0));
             shader.set_uniform_vec3("MaterialAmbient", &Vec3::new(0.05, 0.05, 0.05));
             shader.set_uniform_vec3("MaterialDiffuse", &Vec3::new(1.0, 1.0, 1.0));
             shader.set_uniform_vec3("MaterialSpecular", &Vec3::new(0.4, 0.4, 0.4));
-            shader.set_uniform_float("Unlit", 0.0);
 
             let upright = Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2);
-            let plane_mat = Mat4::from_rotation_x(std::f32::consts::FRAC_PI_2);
+            let plane_mat = Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2);
 
             self.render_body(shader, "plane", plane_mat);
             self.render_body(shader, "main_axes", Mat4::IDENTITY);
             self.render_body(shader, "cylinder", Mat4::from_translation(Vec3::new(-2.0, 0.0, 0.0)) * upright);
             self.render_body(shader, "cone",     Mat4::from_translation(Vec3::new( 2.0, 0.0, 0.0)) * upright);
-            self.render_body(shader, "box",      Mat4::from_translation(Vec3::new( 0.0, 0.5, -2.0)));
+            //self.render_body(shader, "box",      Mat4::from_translation(Vec3::new( 0.0, 0.5, -2.0)));
 
-            shader.set_uniform_float("Unlit", 1.0);
+  
             self.render_body(shader, "sphere", sun_movement_frame.matrix());
-            shader.set_uniform_float("Unlit", 0.0);
         } else {
             println!("WARNING: No shader program");
         }

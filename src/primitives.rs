@@ -192,7 +192,7 @@ pub fn new_cylinder_geometry(radius: f32, height: f32, n_segments: i32, color: V
     let mut colors = Vec::new();
 
     for i in 0..=n_segments {
-        let angle = (i as f32) / (n_segments as f32) * 2.0 * std::f32::consts::PI;
+        let angle = (i as f32) / (n_segments as f32) * 2.0 * -std::f32::consts::PI;
         verts.push(Vec3::new(radius * angle.cos(), radius * angle.sin(), 0.0));
         colors.push(color);
         verts.push(Vec3::new(

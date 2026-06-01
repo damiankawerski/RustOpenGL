@@ -21,6 +21,7 @@ pub enum Attributes {
     Position = 0,
     Color = 1,
     Normal = 2,
+    UV = 7,
 }
 
 pub fn new_axes_geometry() -> Geometry {
@@ -62,6 +63,13 @@ pub fn new_plane_geometry(size: Vec2, color: Vec3) -> Geometry {
         Vec3::new(-size.x / 2.0, size.y / 2.0, 0.0),
     ];
 
+    let uvs = [
+        Vec2::new(0.0, 0.0),
+        Vec2::new(1.0, 0.0),
+        Vec2::new(1.0, 1.0),
+        Vec2::new(0.0, 1.0),
+    ];
+
     let colors = [color; 4];
     let normals = [Vec3::Z; 4];
     let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];
@@ -69,6 +77,7 @@ pub fn new_plane_geometry(size: Vec2, color: Vec3) -> Geometry {
     geometry.set_vertices(Attributes::Position as u32, &verts);
     geometry.set_attribute(Attributes::Color as u32, &colors);
     geometry.set_attribute(Attributes::Normal as u32, &normals);
+    geometry.set_attribute_uv(Attributes::UV as u32, &uvs);
     geometry.set_indices(&indices);
 
     geometry

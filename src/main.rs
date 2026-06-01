@@ -5,6 +5,7 @@ mod primitives;
 mod app;
 mod frame;
 mod camera;
+mod textures_2d;
 
 use glutin::config::ConfigTemplateBuilder;
 use glutin::context::{ContextApi, ContextAttributesBuilder, Version};

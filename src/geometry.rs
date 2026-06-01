@@ -1,4 +1,4 @@
-use glam::Vec3;
+use glam::{Vec2, Vec3};
 use std::collections::HashMap;
 
 pub struct Geometry {
@@ -70,6 +70,29 @@ impl Geometry {
     pub fn set_vertices(&mut self, index: u32, data: &[Vec3]) {
         self.n_verts = data.len() as i32;
         self.set_attribute(index, data);
+    }
+
+    pub fn set_attribute_uv(&mut self, index: u32, data: &[Vec2]) {
+        let mut buffer = 0;
+        if let Some(&b) = self.buffer_objects.get(&index) {
+            buffer = b;
+        } else {
+            unsafe { gl::GenBuffers(1, &mut buffer) };
+            self.buffer_objects.insert(index, buffer);
+        }
+        unsafe {
+            gl::BindVertexArray(self.vao);
+            gl::BindBuffer(gl::ARRAY_BUFFER, buffer);
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
+                std::mem::size_of_val(data) as isize,
+                data.as_ptr() as *const _,
+                gl::STATIC_DRAW,
+            );
+            gl::VertexAttribPointer(index, 2, gl::FLOAT, gl::FALSE, 0, std::ptr::null());
+            gl::EnableVertexAttribArray(index);
+            gl::BindVertexArray(0);
+        }
     }
 
     pub fn set_attribute(&mut self, index: u32, data: &[Vec3]) {

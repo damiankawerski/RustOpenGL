@@ -16,6 +16,7 @@ pub struct GLWidget {
     shaders: HashMap<String, GLSLProgram>,
     geometry: HashMap<String, Geometry>,
     geometry_mat: HashMap<String, Mat4>,
+    textures: HashMap<String, crate::textures_2d::Texture2d>,
 }
 
 impl GLWidget {
@@ -35,12 +36,14 @@ impl GLWidget {
             shaders: HashMap::new(),
             geometry: HashMap::new(),
             geometry_mat: HashMap::new(),
+            textures: HashMap::new(),
         }
     }
 
     pub fn initialize(&mut self) {
         self.create_shaders();
         self.create_geometry();
+        self.create_textures();
     }
 
     fn create_shaders(&mut self) {
@@ -52,7 +55,27 @@ impl GLWidget {
             println!("Some problem with shader!");
         }
         self.shaders.insert("basic".to_string(), program);
+
+        let tex_program = GLSLProgram::new();
+        let mut tex_stat = tex_program.compile_shader_from_file("src/shaders/tex_vs.glsl", gl::VERTEX_SHADER);
+        tex_stat &= tex_program.compile_shader_from_file("src/shaders/tex_fs.glsl", gl::FRAGMENT_SHADER);
+        tex_stat &= tex_program.link();
+        if !tex_stat {
+            println!("Some problem with texture shader!");
+        }
+        self.shaders.insert("tex_ads".to_string(), tex_program);
     }
+
+    fn create_textures(&mut self) {
+        let texture = crate::textures_2d::Texture2d::new();
+        if texture.load_from_file("src/textures/2d/grass_2k.jpg") {
+            println!("Loaded wood texture");
+            self.textures.insert("wood".to_string(), texture);
+        } else {
+            println!("Failed to load wood texture");
+        }
+    }
+
 
     fn add_sphere(&mut self, name: &str, radius: f32, color: Vec3) {
         let geom = crate::primitives::new_sphere_geometry(radius, 32, color);
@@ -188,9 +211,8 @@ impl GLWidget {
             shader.set_uniform_vec3("MaterialSpecular", &Vec3::new(0.4, 0.4, 0.4));
 
             let upright = Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2);
-            let plane_mat = Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2);
 
-            self.render_body(shader, "plane", plane_mat);
+            // plane rendered below with textured shader
             self.render_body(shader, "main_axes", Mat4::IDENTITY);
             self.render_body(shader, "cylinder", Mat4::from_translation(Vec3::new(-2.0, 0.0, 0.0)) * upright);
             self.render_body(shader, "cone",     Mat4::from_translation(Vec3::new( 2.0, 0.0, 0.0)) * upright);
@@ -200,6 +222,27 @@ impl GLWidget {
             self.render_body(shader, "sphere", sun_movement_frame.matrix());
         } else {
             println!("WARNING: No shader program");
+        }
+
+        if let (Some(shader), Some(texture)) = (
+            self.shaders.get("tex_ads"),
+            self.textures.get("wood"),
+        ) {
+            shader.use_program();
+
+            let view = self.camera.matrix();
+            let plane_mat = Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2);
+
+            shader.set_uniform_mat4("ViewMat", &view);
+            shader.set_uniform_mat4("ProjectionMat", &self.projection_mat);
+            shader.set_uniform_vec3("LightPos", &Vec3::ZERO);
+            shader.set_uniform_vec3("LightColor", &Vec3::new(1.0, 1.0, 1.0));
+            shader.set_uniform_vec3("MaterialAmbient", &Vec3::new(0.1, 0.1, 0.1));
+            shader.set_uniform_vec3("MaterialSpecular", &Vec3::new(0.1, 0.1, 0.1));
+            shader.set_uniform_int("TextureSampler", 0);
+
+            texture.bind(0);
+            self.render_body(shader, "plane", plane_mat);
         }
 
         self.frame += 1;

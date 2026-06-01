@@ -69,10 +69,18 @@ impl GLWidget {
     fn create_textures(&mut self) {
         let texture = crate::textures_2d::Texture2d::new();
         if texture.load_from_file("src/textures/2d/grass_2k.jpg") {
-            println!("Loaded wood texture");
-            self.textures.insert("wood".to_string(), texture);
+            println!("Loaded grass texture");
+            self.textures.insert("grass".to_string(), texture);
         } else {
-            println!("Failed to load wood texture");
+            println!("Failed to load grass texture");
+        }
+
+        let normal_map = crate::textures_2d::Texture2d::new();
+        if normal_map.load_from_file("src/textures/2d/normal_map_1.jpg") {
+            println!("Loaded grass normal map");
+            self.textures.insert("grass_normal".to_string(), normal_map);
+        } else {
+            println!("Failed to load grass normal map");
         }
     }
 
@@ -212,11 +220,9 @@ impl GLWidget {
 
             let upright = Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2);
 
-            // plane rendered below with textured shader
             self.render_body(shader, "main_axes", Mat4::IDENTITY);
             self.render_body(shader, "cylinder", Mat4::from_translation(Vec3::new(-2.0, 0.0, 0.0)) * upright);
             self.render_body(shader, "cone",     Mat4::from_translation(Vec3::new( 2.0, 0.0, 0.0)) * upright);
-            //self.render_body(shader, "box",      Mat4::from_translation(Vec3::new( 0.0, 0.5, -2.0)));
 
   
             self.render_body(shader, "sphere", sun_movement_frame.matrix());
@@ -224,9 +230,10 @@ impl GLWidget {
             println!("WARNING: No shader program");
         }
 
-        if let (Some(shader), Some(texture)) = (
+        if let (Some(shader), Some(diffuse), Some(normal_map)) = (
             self.shaders.get("tex_ads"),
-            self.textures.get("wood"),
+            self.textures.get("grass"),
+            self.textures.get("grass_normal"),
         ) {
             shader.use_program();
 
@@ -238,10 +245,12 @@ impl GLWidget {
             shader.set_uniform_vec3("LightPos", &Vec3::ZERO);
             shader.set_uniform_vec3("LightColor", &Vec3::new(1.0, 1.0, 1.0));
             shader.set_uniform_vec3("MaterialAmbient", &Vec3::new(0.1, 0.1, 0.1));
-            shader.set_uniform_vec3("MaterialSpecular", &Vec3::new(0.1, 0.1, 0.1));
+            shader.set_uniform_vec3("MaterialSpecular", &Vec3::new(0.2, 0.2, 0.2));
             shader.set_uniform_int("TextureSampler", 0);
+            shader.set_uniform_int("NormalSampler", 1);
 
-            texture.bind(0);
+            diffuse.bind(0);
+            normal_map.bind(1);
             self.render_body(shader, "plane", plane_mat);
         }
 

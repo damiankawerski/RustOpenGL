@@ -73,7 +73,6 @@ pub fn new_plane_geometry(size: Vec2, color: Vec3) -> Geometry {
 
     let colors = [color; 4];
     let normals = [Vec3::Z; 4];
-    // plane is in XY, so tangent points along X
     let tangents = [Vec3::X; 4];
     let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];
 

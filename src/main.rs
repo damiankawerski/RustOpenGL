@@ -6,6 +6,7 @@ mod app;
 mod frame;
 mod camera;
 mod textures_2d;
+mod obj_loader;
 
 use glutin::config::ConfigTemplateBuilder;
 use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
